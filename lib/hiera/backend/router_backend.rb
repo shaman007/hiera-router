@@ -68,7 +68,7 @@ class Hiera
           :resolution_type => resolution_type,
         }
 
-        key_path = Util.split_key(lookup_key)
+        key_path = split_key(lookup_key)
         key = key_path.shift
 
         answer = nil
@@ -123,6 +123,23 @@ class Hiera
         return answer
       end
 
+      def split_key(key)
+          segments = key.split(/(?:"([^"]+)"|'([^']+)'|([^'".]+))/)
+          if segments.empty?
+            # Only happens if the original key was an empty string
+            ''
+          elsif segments.shift == ''
+            count = segments.size
+            raise yield('Syntax error') unless count > 0
+
+            segments.keep_if { |seg| seg != '.' }
+            raise yield('Syntax error') unless segments.size * 2 == count + 1
+            segments
+         else
+            raise yield('Syntax error')
+         end
+      end
+
       def recursive_key_from_hash(hash, path)
         focus = hash
         path.each do |key|
@@ -168,7 +185,7 @@ class Hiera
           Hiera.debug("[hiera-router] Calling hiera with '#{backend_name}'...")
           if backend = self.backends[backend_name.to_sym]
             backend_instance = backend[:instance]
-            key = Util.split_key(backend_options[:key]).first
+            key = split_key(backend_options[:key]).first
             Hiera.debug("[hiera-router] Backend class: #{backend_instance.class.name}")
             Config.load(backend[:config])
             result = backend_instance.lookup(key, backend_options[:scope], nil, backend_options[:resolution_type])
